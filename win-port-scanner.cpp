@@ -57,33 +57,48 @@ bool scanPort(const string& host, int port) {
         return false;
     }
 }
+void scanPort(const char* targetHost, int port) {
+    WSADATA wsaData;
+    SOCKET sock;
+    struct sockaddr_in server;
+    int result;
 
-vector<int> portScanner(const string& host, const vector<int>& portRange) {  //port scanner wooo scans a range of ports concurrently using async and future 
-    vector<int> openPorts;
-    vector<future<bool>> futures;
-
-    for (int port : portRange) {
-        futures.push_back(async(launch::async, scanPort, host, port));
+    // Initialize Winsock
+    if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
+        cout << "Failed to initialize Winsock. Error: " << WSAGetLastError() << endl;
+        return;
     }
 
-    for (size_t i = 0; i < futures.size(); ++i) {
-        if (futures[i].get()) {
-            openPorts.push_back(portRange[i]);
-        }
+    // Create a socket
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) {
+        cout << "Could not create socket. Error: " << WSAGetLastError() << endl;
+        WSACleanup();
+        return;
     }
 
-    return openPorts;
+    // Set up the sockaddr_in structure
+    server.sin_family = AF_INET;
+    server.sin_port = htons(port);
+    inet_pton(AF_INET, targetHost, &server.sin_addr);
+
+    // Try to connect to the port
+    result = connect(sock, (struct sockaddr*)&server, sizeof(server));
+    if (result == SOCKET_ERROR) {
+        cout << "Port " << port << " is closed." << endl;
+    } else {
+        cout << "Port " << port << " is open." << endl;
+    }
+
+    // Clean up
+    closesocket(sock);
+    WSACleanup();
 }
 
 int main() {
-    string targetHost = "scanme.nmap.org";  // Target host for testing
-    vector<int> targetPorts = {22, 80, 443, 25, 110, 143, 587, 3306, 3389, 8080};  // Example ports to scan
-
-    vector<int> openPorts = portScanner(targetHost, targetPorts);
-
-    cout << "Open ports on " << targetHost << ":" << endl;
-    for (int port : openPorts) {
-        cout << port << endl;
+    const char* targetHost = "scanme.nmap.org";  // Target host for testing
+   for (int port = 80; port <= 85; ++port) { // Scanning a small range of ports for example
+        scanPort(targetHost, port);
     }
 
     return 0;
