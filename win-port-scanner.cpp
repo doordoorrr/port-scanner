@@ -82,19 +82,32 @@ void scanPort(const char* targetHost, int port) {
 
 int main() {
     char targetHost[100];
-    std::cout << "Enter the target host: ";
-    std::cin >> targetHost;
+    int port;
+    bool continueScanning = true;
+    char continueInput;
 
-    for (int port = 80; port <= 85; ++port) {
-        scanPort(targetHost, port);
-    }
+    do {
+        std::cout << "Enter the target host: ";
+        std::cin >> targetHost;
 
-    int port = 0;
-    std::cout << "What port would you like to scan? ";
-    std::cin >> port;
-    scanPort(targetHost, port);
+        std::cout << "Enter the port you would like to scan (Enter -1 to exit): ";
+        std::cin >> port;
 
-    std::cout << "Press enter to exit...";
+        if (port == -1) {
+            continueScanning = false;
+        } else {
+            scanPort(targetHost, port);
+        }
+
+        std::cout << "Would you like to scan another port? (Y/N): ";
+        std::cin >> continueInput;
+        
+        if (continueInput == 'N' || continueInput == 'n') {
+            continueScanning = false;
+        }
+    } while (continueScanning);
+
+    std::cout << "Scanning complete. Press enter to exit...";
     std::cin.ignore();
     std::cin.get();
 
