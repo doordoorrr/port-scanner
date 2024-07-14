@@ -1,7 +1,7 @@
 #include <iostream>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
+using namespace std;
 #pragma comment(lib, "ws2_32.lib")
 
 void scanPort(const char* targetHost, int port) {
@@ -31,7 +31,14 @@ void scanPort(const char* targetHost, int port) {
 
     // Set socket to non-blocking mode
     u_long mode = 1;
-    ioctlsocket(sock, FIONBIO, &mode);
+    
+
+    if (ioctlsocket(sock, FIONBIO, &mode) != 0) {
+        std::cout << "ioctlsocket failed. Error: " << WSAGetLastError() << std::endl;
+        closesocket(sock);
+        WSACleanup();
+        return;
+    }
 
     // Try to connect to the port
     result = connect(sock, (struct sockaddr*)&server, sizeof(server));
@@ -47,13 +54,22 @@ void scanPort(const char* targetHost, int port) {
             timeout.tv_sec = 1;  // 1 second timeout
             timeout.tv_usec = 0;
             
-            if (select(0, NULL, &writeSet, NULL, &timeout) > 0 && FD_ISSET(sock, &writeSet)) {
-                std::cout << "Port " << port << " is open." << std::endl;
+            if (select(0, NULL, &writeSet, NULL, &timeout) > 0) {
+                int optVal;
+                int optLen = sizeof(int);
+                if (getsockopt(sock, SOL_SOCKET, SO_ERROR, (char*)&optVal, &optLen) != SOCKET_ERROR && optVal == 0) {
+                    std::cout << "Port " << port << " is open." << std::endl;
+                } else {
+                    std::cout << "Port " << port << " is closed." << std::endl;
+                }
             } else {
                 std::cout << "Port " << port << " is closed." << std::endl;
             }
         } else {
             std::cout << "Connect error: " << error << std::endl;
+            closesocket(sock);
+            WSACleanup();
+            return;
         }
     } else {
         std::cout << "Port " << port << " is open." << std::endl;
@@ -65,12 +81,21 @@ void scanPort(const char* targetHost, int port) {
 }
 
 int main() {
-    const char* targetHost = "scanme.nmap.org";  // Target host for testing
+    char targetHost[100];
+    std::cout << "Enter the target host: ";
+    std::cin >> targetHost;
+
     for (int port = 80; port <= 85; ++port) {
         scanPort(targetHost, port);
     }
 
-    std::cout << "press enter to exit...";
+    int port = 0;
+    std::cout << "What port would you like to scan? ";
+    std::cin >> port;
+    scanPort(targetHost, port);
+
+    std::cout << "Press enter to exit...";
+    std::cin.ignore();
     std::cin.get();
 
     return 0;
